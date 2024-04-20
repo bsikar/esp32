@@ -10,6 +10,25 @@ idf.py build
 
 ```
 
+
+Steps to Compile the program
+```
+# run the export script
+. /opt/esp-idf/export.sh
+
+# Go to one of the server's code
+## go to client
+cd client-server/client
+## go to server
+cd client-server/server
+
+# build the code
+idf.py build
+
+# flash the board
+sudo idf.py flash
+```
+
 1. **Set the ESP32 target** (if you haven’t done so already or if you need to specify a particular ESP32 chip variant):
    ```bash
    idf.py set-target esp32

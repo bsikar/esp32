@@ -496,8 +496,15 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 }
 
 /**** START | Hi ;3 *****/
-#define GPIO_INPUT_PIN      GPIO_NUM_23 // Use GPIO 23 for D23 on ESP32
-#define GPIO_INPUT_PIN_MASK (1ULL << GPIO_INPUT_PIN) // Bitmask for the pin
+#define GPIO_INPUT_PIN_1 GPIO_NUM_19 // Use GPIO 19 for D19 on ESP32
+#define GPIO_INPUT_PIN_2 GPIO_NUM_21 // Use GPIO 21 for D21 on ESP32
+#define GPIO_INPUT_PIN_3 GPIO_NUM_22 // Use GPIO 22 for D22 on ESP32
+#define GPIO_INPUT_PIN_4 GPIO_NUM_23 // Use GPIO 23 for D23 on ESP32
+#define GPIO_INPUT_PIN_5 GPIO_NUM_18 // use GPIO 18 for D18 on ESP32
+#define GPIO_INPUT_PIN_MASK                                                    \
+  ((1ULL << GPIO_INPUT_PIN_1) | (1ULL << GPIO_INPUT_PIN_2) |                   \
+   (1ULL << GPIO_INPUT_PIN_3) | (1ULL << GPIO_INPUT_PIN_4) |                   \
+   (1ULL << GPIO_INPUT_PIN_5))
 
 QueueHandle_t gpio_evt_queue =
     NULL; // Use QueueHandle_t instead of xQueueHandle
@@ -528,7 +535,9 @@ void write_gpio_pin_number(uint32_t gpio_num) {
 static void gpio_tasks(void *arg) {
   uint32_t io_num;
   for (;;) {
-    if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+
+    if (xQueueReceive(gpio_evt_queue, &io_num,
+                      pdMS_TO_TICKS(250))) { // delay 1/4 sec
       ESP_LOGI("GPIO", "GPIO[%" PRIu32 "] intr, val: %d\n", io_num,
                gpio_get_level(io_num));
 
@@ -628,6 +637,14 @@ void app_main(void) {
 
   // Install GPIO ISR service and add ISR handler for D23
   gpio_install_isr_service(0);
-  gpio_isr_handler_add(GPIO_INPUT_PIN, gpio_isr_handler,
-                       (void *)GPIO_INPUT_PIN);
+  gpio_isr_handler_add(GPIO_INPUT_PIN_1, gpio_isr_handler,
+                       (void *)GPIO_INPUT_PIN_1);
+  gpio_isr_handler_add(GPIO_INPUT_PIN_2, gpio_isr_handler,
+                       (void *)GPIO_INPUT_PIN_2);
+  gpio_isr_handler_add(GPIO_INPUT_PIN_3, gpio_isr_handler,
+                       (void *)GPIO_INPUT_PIN_3);
+  gpio_isr_handler_add(GPIO_INPUT_PIN_4, gpio_isr_handler,
+                       (void *)GPIO_INPUT_PIN_4);
+  gpio_isr_handler_add(GPIO_INPUT_PIN_5, gpio_isr_handler,
+                       (void *)GPIO_INPUT_PIN_5);
 }

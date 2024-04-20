@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "driver/gpio.h"
 #include "esp_bt_defs.h"
 #include "esp_bt_device.h"
 #include "esp_bt_main.h"
@@ -385,11 +386,18 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t      event,
   }
   case ESP_GATTS_WRITE_EVT: {
     if (param->write.handle == characteristic_handle && !param->write.is_prep) {
+      // MATT PLEASE TOUCH ME :)
+
       // The client has written to the correct characteristic
       int pin_number =
           atoi((char *)param->write.value); // Convert back to integer
       ESP_LOGI("GATTS", "Received GPIO pin number %d from client", pin_number);
       // Now you can use this pin_number as needed in your application
+
+      gpio_set_direction(pin_number, GPIO_MODE_OUTPUT);
+      gpio_set_level(pin_number, 1);
+      vTaskDelay(2000 / portTICK_PERIOD_MS); // 2 seconds
+      gpio_set_level(pin_number, 0);
     }
 
     ESP_LOGI(GATTS_TAG,
