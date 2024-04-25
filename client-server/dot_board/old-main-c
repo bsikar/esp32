@@ -1,0 +1,143 @@
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "sdkconfig.h"
+#include <stdint.h>
+
+/* TODO!
+
+  On the msp you will set the CS pins
+  You will activate the CS pin you want
+  Then you will send the PIN_NUM_PLACE as HIGH
+
+*/
+
+#define PIN_NUM_CLK   15
+#define PIN_NUM_DIN   2
+#define PIN_NUM_PLACE 5
+
+#define PIN_CS1 13
+#define PIN_CS2 12
+#define PIN_CS3 14
+#define PIN_CS4 27
+#define PIN_CS5 26
+#define PIN_CS6 25
+#define PIN_CS7 33
+#define PIN_CS8 32
+#define PIN_CS9 35
+
+void sendByte(uint8_t reg, uint8_t data) {
+  uint16_t word = (reg << 8) | data;
+  for (int i = 15; i >= 0; i--) {
+    gpio_set_level(PIN_NUM_CLK, 0);
+    gpio_set_level(PIN_NUM_DIN, (word >> i) & 0x01);
+    gpio_set_level(PIN_NUM_CLK, 1);
+  }
+}
+
+void sendToMax(uint8_t reg, uint8_t data) { sendByte(reg, data); }
+
+void setupMax7219() {
+  sendToMax(0x0C, 0x01); // Normal operation mode
+  sendToMax(0x0B, 0x07); // Scan limit = 7 (All rows, cs)
+  sendToMax(0x09, 0x00); // No decode mode
+  sendToMax(0x0A, 0x08); // Intensity control
+  sendToMax(0x0F, 0x00); // Display test off
+}
+
+void displayCursor(char curr_state) {
+  if (curr_state == 'X') {
+    sendToMax(1, 0b11111111);
+    sendToMax(2, 0b10000001);
+    sendToMax(3, 0b10100101);
+    sendToMax(4, 0b10011001);
+    sendToMax(5, 0b10011001);
+    sendToMax(6, 0b10100101);
+    sendToMax(7, 0b10000001);
+    sendToMax(8, 0b11111111);
+  } else if (curr_state == 'O') {
+    sendToMax(1, 0b11111111);
+    sendToMax(2, 0b10000001);
+    sendToMax(3, 0b10011001);
+    sendToMax(4, 0b10100101);
+    sendToMax(5, 0b10100101);
+    sendToMax(6, 0b10011001);
+    sendToMax(7, 0b10000001);
+    sendToMax(8, 0b11111111);
+  } else {
+    sendToMax(1, 0b11111111);
+    sendToMax(2, 0b10000001);
+    sendToMax(3, 0b10000001);
+    sendToMax(4, 0b10000001);
+    sendToMax(5, 0b10000001);
+    sendToMax(6, 0b10000001);
+    sendToMax(7, 0b10000001);
+    sendToMax(8, 0b11111111);
+  }
+}
+
+void displayX() {
+  // Setting columns for "X"
+  sendToMax(1, 0b00000000);
+  sendToMax(2, 0b01000010);
+  sendToMax(3, 0b00100100);
+  sendToMax(4, 0b00011000);
+  sendToMax(5, 0b00011000);
+  sendToMax(6, 0b00100100);
+  sendToMax(7, 0b01000010);
+  sendToMax(8, 0b00000000);
+}
+
+void displayO() {
+  // Setting columns for "O"
+  sendToMax(1, 0b00000000);
+  sendToMax(2, 0b00111100);
+  sendToMax(3, 0b01100110);
+  sendToMax(4, 0b01000010);
+  sendToMax(5, 0b01000010);
+  sendToMax(6, 0b01100110);
+  sendToMax(7, 0b00111100);
+  sendToMax(8, 0b00000000);
+}
+
+void app_main(void) { // this works to flip between the displays
+  char    state[9]       = {'\0'};
+  uint8_t input_pins[10] = {PIN_NUM_PLACE, PIN_CS1, PIN_CS2, PIN_CS3, PIN_CS4,
+                            PIN_CS5,       PIN_CS6, PIN_CS7, PIN_CS8, PIN_CS9};
+
+  for (uint8_t i = 0; i < 10; ++i) {
+    gpio_set_direction(input_pins[i], GPIO_MODE_INPUT);
+  }
+  gpio_set_direction(PIN_NUM_CLK, GPIO_MODE_OUTPUT);
+  gpio_set_direction(PIN_NUM_DIN, GPIO_MODE_OUTPUT);
+
+  setupMax7219();
+  bool playerOne = true;
+
+  while (1) {
+    displayX();
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+
+  while (1) {
+    uint8_t active_cs_pin_idx = -1;
+    for (uint8_t i = 1; i < 10; ++i) {
+      if (gpio_get_level(i) == 0) {
+        active_cs_pin_idx = i - 1;
+      }
+    }
+    displayCursor(state[active_cs_pin_idx]);
+
+    if (gpio_get_level(PIN_NUM_PLACE) != 0) { // this is low enabled
+      if (playerOne) {
+        state[active_cs_pin_idx] = 'X';
+        displayX();
+        playerOne = false;
+      } else {
+        state[active_cs_pin_idx] = 'O';
+        displayO();
+        playerOne = true;
+      }
+    }
+  }
+}
